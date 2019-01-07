@@ -1,0 +1,181 @@
+/* 
+This uses the Adafruit motorshield and the Text to Speech sheeld
+---->	http://www.adafruit.com/products/1438
+*/
+
+#define CUSTOM_SETTINGS
+#define INCLUDE_TEXT_TO_SPEECH_SHIELD
+#include <OneSheeld.h>
+#include <Wire.h>
+#include <Adafruit_MotorShield.h>
+#define numChars 26
+static int chars[numChars] = {
+  0x10,
+  0x30,
+  0x11,
+  0x13,
+  0x12,
+  0x31,
+  0x33,
+  0x32,
+  0x21,
+  0x23,
+  0x50,
+  0x70,
+  0x51,
+  0x53,
+  0x52,
+  0x71,
+  0x73,
+  0x72,
+  0x61,
+  0x63,
+  0x54,
+  0x74,
+  0x27,
+  0x55,
+  0x57,
+  0x56
+};
+
+// Create the motor shield object with the default I2C address
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
+// Or, create it with a different I2C address (say for stacking)
+// Adafruit_MotorShield AFMS = Adafruit_MotorShield(0x61); 
+
+// Connect a stepper motor with 200 steps per revolution (1.8 degree)
+// to motor port #2 (M3 and M4)
+Adafruit_StepperMotor *myMotorR = AFMS.getStepper(200, 1);
+Adafruit_StepperMotor *myMotorL = AFMS.getStepper(200, 2);
+
+  int curCharL= 0x0;
+  int curCharR = 0x0; // start at a/1
+  int nextCharL, nextCharR;
+
+void setup() {
+  Serial.begin(9600);           // set up Serial library at 9600 bps
+  Serial.println("Stepper test!");
+  Serial.println("Starting");
+  OneSheeld.begin();
+  AFMS.begin();  // create with the default frequency 1.6KHz
+  //AFMS.begin(1000);  // OR with a different frequency, say 1KHz
+
+  myMotorL->setSpeed(50);
+  myMotorR->setSpeed(50);  // 10 rpm   
+  curCharL= 0x0;
+  curCharR = 0x0; // start at a/1
+
+}
+
+
+void printChar(char val) {
+
+  int dirL, stepsL, dirR, stepsR;
+  int index;
+  index = val - 'a';
+  Serial.println("Printing left/right braille");
+    //Serial.println(val);
+    //val = 'a'+i;
+    Serial.print("Letter ");
+    Serial.println(val);
+    
+  nextCharL = (chars[index] & 0xf0) >> 4;
+  Serial.println(curCharL);
+    Serial.println(nextCharL);
+    if((nextCharL - curCharL) >= 0) {
+      if((nextCharL-curCharL) > (curCharL+8-nextCharL)) {
+        stepsL = (curCharL+8-nextCharL)*200/8;
+        dirL = BACKWARD;
+      } else {
+        stepsL = (nextCharL-curCharL)*200/8;
+        dirL = FORWARD;
+      }
+    } else {
+      if((curCharL-nextCharL) > (nextCharL+8-curCharL)) {
+        stepsL = (nextCharL+8-curCharL)*200/8;
+        dirL = FORWARD;
+      } else {
+        stepsL = (curCharL-nextCharL)*200/8;
+        dirL = BACKWARD;
+      }   
+    }
+    //stepsL = (nextCharL-curCharL) >= 0? (nextCharL-curCharL)*200/8 : (curCharL - nextCharL)*200/8;
+    //dirL = (nextCharL - curCharL) >= 0? FORWARD : BACKWARD;
+    
+    //stepsL = (stepsL > 100) ? 200-stepsL : stepsL;
+    Serial.print("Steps left=");
+    Serial.println(stepsL);
+    Serial.print("Dir left=");
+    Serial.println(dirL);
+    
+    
+    nextCharR = (chars[index] & 0x0f);
+    Serial.println(curCharR);
+    Serial.println(nextCharR);
+    if((nextCharR - curCharR) >= 0) {
+      if((nextCharR-curCharR) > (curCharR+8-nextCharR)) {
+        stepsR = (curCharR+8-nextCharR)*200/8;
+        dirR = BACKWARD;
+      } else {
+        stepsR = (nextCharR-curCharR)*200/8;
+        dirR = FORWARD;
+      }
+    } else {
+      if((curCharR-nextCharR) > (nextCharR+8-curCharR)) {
+        stepsR = (nextCharR+8-curCharR)*200/8;
+        dirR = FORWARD;
+      } else {
+        stepsR = (curCharR-nextCharR)*200/8;
+        dirR = BACKWARD;
+      }   
+    }
+    //stepsR = (nextCharR-curCharR) >= 0? (nextCharR-curCharR)*200/8 : (curCharR - nextCharR)*200/8;
+    //dirR = (nextCharR - curCharR) >= 0? FORWARD : BACKWARD;
+    Serial.print("Steps right=");
+    Serial.println(stepsR);
+    Serial.print("Dir right=");
+    Serial.println(dirR);
+
+    myMotorR->step(stepsR, dirR, SINGLE);
+    myMotorL->step(stepsL, dirL, SINGLE); 
+    curCharR = nextCharR;
+    curCharL = nextCharL;
+    delay(1000);
+}
+
+void loop() {
+
+  for(int i=0;i<26;i++) {
+    //while(!Serial.available()){}
+    //Serial.flush();
+    //Serial.read();
+    //printChar('a'+i);
+
+  }
+  char buf[] ="this is a simple string to read for braille";
+  int numWords = 0;
+  char *p = strtok (buf, " ");
+  curCharL= 0x1;
+  curCharR = 0x0; // start at a/1
+
+  while (p != NULL) {
+    TextToSpeech.say(p);
+    int k=0;
+    while(p[k] != '\0') {
+      //TextToSpeech.say(p[k]);
+      //while(!Serial.available()){}
+      //Serial.flush();
+      //Serial.read();
+      printChar(tolower(p[k]));
+      k++;
+    }
+    p = strtok (NULL, " ");
+  }
+
+
+  //delay(1000);
+  //exit(0);
+  
+
+
+}
